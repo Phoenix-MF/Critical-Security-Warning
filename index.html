@@ -70,7 +70,7 @@
         <div class="fake-window">
             <div class="window-header"><span>Microsoft Windows</span><span>✕</span></div>
             <div class="window-body">
-                <p>重大なエラー: 0x8004210B<br>メモリがバナナに書き換えられました。</p>
+                <p>重大なエラー: 0x8004210B<br>このパソコンはウイルスに感染しました。　ウイルス増殖中。</p>
             </div>
         </div>
     </div>
@@ -121,16 +121,6 @@
                 clone.style.left = x + 'px';
                 clone.style.top = y + 'px';
                 document.body.appendChild(clone);
-
-                count++;
-                if (count >= max) {
-                    clearInterval(interval);
-                    setTimeout(() => {
-                        alert("ドッキリ大成功！\n\n落ち着いて Escキー を長押ししてください。");
-                    }, 1000);
-                }
-            }, 250);
-        }
     </script>
 </body>
 </html>
