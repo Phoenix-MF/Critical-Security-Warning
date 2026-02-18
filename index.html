@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【公式】精密性格診断テスト</title>
+    <style>
+        /* ベースのスタイル */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #202124;
+            color: white;
+            font-family: 'Segoe UI', Meiryo, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        h1 { font-size: 2rem; margin-bottom: 20px; }
+
+        #start-btn {
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        #start-btn:hover { transform: scale(1.05); background-color: #3367d6; }
+
+        /* 偽ウィンドウのスタイル */
+        .fake-window {
+            position: absolute;
+            width: 350px;
+            background: #f0f0f0;
+            border: 1px solid #0078d7;
+            box-shadow: 10px 10px 25px rgba(0,0,0,0.4);
+            z-index: 10000;
+            user-select: none;
+        }
+
+        .window-header {
+            background: #0078d7;
+            color: white;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .window-body {
+            padding: 25px;
+            color: #333;
+            text-align: center;
+        }
+
+        .window-body p { margin: 0 0 15px 0; font-size: 0.95rem; }
+
+        .fake-btn {
+            background: #e1e1e1;
+            border: 1px solid #adadad;
+            padding: 5px 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>精密性格診断（AI版）</h1>
+    <p>あなたの深層心理を解析し、本当の性格を暴きます。</p>
+    <button id="start-btn">診断を開始する</button>
+
+    <div id="window-template" style="display:none;">
+        <div class="fake-window">
+            <div class="window-header">
+                <span>System Critical Error</span>
+                <span>✕</span>
+            </div>
+            <div class="window-body">
+                <p>重大なエラーが発生しました。<br>システムがバナナ化しています。</p>
+                <button class="fake-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const btn = document.getElementById('start-btn');
+        const template = document.getElementById('window-template');
+
+        btn.addEventListener('click', async () => {
+            try {
+                // 1. 全画面化の実行
+                if (document.documentElement.requestFullscreen) {
+                    await document.documentElement.requestFullscreen();
+                }
+
+                // 2. ポインターロック（マウスを消す・固定する）
+                if (document.documentElement.requestPointerLock) {
+                    document.documentElement.requestPointerLock();
+                }
+
+                // ボタンを消して診断中っぽくする
+                btn.style.display = 'none';
+                document.querySelector('h1').innerText = "解析中...";
+
+                // 3. 連続ポップアップの開始（少し遅らせる）
+                setTimeout(() => {
+                    startPrank();
+                }, 1000);
+
+            } catch (err) {
+                alert("エラー: ユーザー操作として認識されませんでした。もう一度クリックしてください。");
+            }
+        });
+
+        function startPrank() {
+            let count = 0;
+            const maxPopups = 50; // 最大個数
+
+            const interval = setInterval(() => {
+                createPopup();
+                count++;
+                
+                if (count >= maxPopups) {
+                    clearInterval(interval);
+                    // 最後にトドメのメッセージ
+                    setTimeout(() => {
+                        alert("ドッキリ成功！\n\n（Escキーを長押しして終了してください）");
+                    }, 1000);
+                }
+            }, 250); // 0.25秒おきに出現
+        }
+
+        function createPopup() {
+            const clone = template.firstElementChild.cloneNode(true);
+            
+            // ランダムな位置に配置
+            const x = Math.random() * (window.innerWidth - 350);
+            const y = Math.random() * (window.innerHeight - 200);
+            
+            clone.style.left = x + 'px';
+            clone.style.top = y + 'px';
+            
+            document.body.appendChild(clone);
+        }
+
+        // セキュリティ：Pointer Lockが解除されたらポップアップ生成を止めるなどの処理も可能
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement === null) {
+                console.log("ユーザーが脱出しました");
+            }
+        });
+    </script>
+</body>
+</html>
