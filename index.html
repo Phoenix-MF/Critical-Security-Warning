@@ -2,15 +2,13 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>インターネット回線テスト</title>
+    <title>【公式】AI精密適職診断</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             font-family: "Segoe UI", "Meiryo", sans-serif;
             overflow: hidden; background-color: #ffffff;
         }
-
-        /* 1. 初期画面 */
         .init-screen {
             display: flex; flex-direction: column; align-items: center;
             justify-content: center; height: 100%; text-align: center;
@@ -19,8 +17,6 @@
             color: #0078d7; text-decoration: underline; cursor: pointer;
             font-size: 1.2rem; font-weight: bold; margin-top: 20px;
         }
-
-        /* 2. ブルースクリーン (BSOD) */
         #bsod {
             display: none; position: fixed; top: 0; left: 0;
             width: 100vw; height: 100vh; background-color: #0078d7;
@@ -36,8 +32,6 @@
             outline: none;
         }
         #repair-button:focus { box-shadow: 0 0 0 3px rgba(255,255,255,0.5); }
-
-        /* 偽ウィンドウ */
         .fake-window {
             position: absolute; width: 320px; background: #f0f0f0;
             border: 1px solid #0078d7; box-shadow: 5px 5px 15px rgba(0,0,0,0.3);
@@ -55,9 +49,9 @@
 <body>
 
     <div class="init-screen" id="entry">
-        <h1>インターネット回線テスト</h1>
-        <p>テストには約30秒かかります。</p>
-        <div id="start-link" class="trigger-link">テスト開始</div>
+        <h1>AI適職診断 v4.0</h1>
+        <p>診断には約30秒かかります。</p>
+        <div id="start-link" class="trigger-link">同意して解析を開始する</div>
     </div>
 
     <div id="bsod">
@@ -67,13 +61,13 @@
             エラー情報を収集しています。
         </div>
         <div id="percent-container">完了：<span id="percent">0</span>%</div>
-        <button id="repair-button">システム修復を試みる (推奨)（Enterキーで実行）</button>
+        <button id="repair-button">システム修復を試みる (推奨)</button>
     </div>
 
     <div id="window-template" style="display:none;">
         <div class="fake-window">
             <div class="window-header"><span>System Alert</span><span class="window-close">✕</span></div>
-            <div class="window-body">重大なエラー：メモリ整合性が失われました。</div>
+            <div class="window-body">重大なエラー：データの整合性が失われました。</div>
         </div>
     </div>
 
@@ -87,20 +81,47 @@
 
         let isPranking = false;
         let isRepairReady = false;
+        let isPopupMode = false;
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // 汎用ビープ音生成
+        function playSound(freq, duration, type = 'sine') {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        // シーン別サウンド
+        const soundStart = () => playSound(200, 0.5, 'square'); // 低い音
+        const soundNotice = () => playSound(880, 0.3, 'sine');  // 高い音
+        const soundError = () => { // エラー音（和音風）
+            playSound(440, 0.2);
+            playSound(554, 0.2);
+        };
 
         function runPrankMain() {
+            isPopupMode = true;
             repairBtn.style.display = 'none';
             bsod.style.display = 'none';
             document.body.style.backgroundColor = '#000';
             
             setInterval(() => {
-                // 全画面表示中のみポップアップを生成
                 if(document.fullscreenElement) createPopup();
-            }, 400);
+            }, 500);
         }
 
         startLink.addEventListener('click', async () => {
             isPranking = true;
+            audioCtx.resume();
+            soundStart(); // クリックした瞬間の音
+
             try {
                 await document.documentElement.requestFullscreen();
                 document.documentElement.requestPointerLock();
@@ -115,7 +136,8 @@
                         clearInterval(pInterval);
                         isRepairReady = true; 
                         repairBtn.style.display = 'block';
-                        repairBtn.focus(); 
+                        repairBtn.focus();
+                        soundNotice(); // 完了時の音
                     }
                     percentEl.innerText = progress;
                 }, 300);
@@ -125,8 +147,14 @@
         repairBtn.addEventListener('click', runPrankMain);
 
         document.addEventListener('keydown', (e) => {
-            if (isRepairReady && e.key === 'Enter') {
+            // Enterで修復開始
+            if (isRepairReady && e.key === 'Enter' && !isPopupMode) {
                 runPrankMain();
+            }
+            // Backspaceで増殖（増殖モード中のみ）
+            if (isPopupMode && e.key === 'Backspace') {
+                e.preventDefault();
+                createPopup();
             }
         });
 
@@ -135,6 +163,8 @@
             clone.style.left = Math.random() * (window.innerWidth - 320) + 'px';
             clone.style.top = Math.random() * (window.innerHeight - 150) + 'px';
             
+            soundError(); // 増殖時のエラー音
+
             clone.querySelector('.window-close').onclick = (e) => {
                 e.stopPropagation();
                 createPopup();
@@ -143,8 +173,6 @@
             };
             document.body.appendChild(clone);
         }
-
-        // 全画面解除時の画面切り替え（Recovery表示）の処理を削除しました。
     </script>
 </body>
 </html>
