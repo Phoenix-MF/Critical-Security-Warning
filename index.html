@@ -33,7 +33,9 @@
             display: none; padding: 12px 25px; font-size: 1.1rem; 
             background-color: white; color: #0078d7; border: none; 
             border-radius: 3px; cursor: pointer; margin-top: 30px;
+            outline: none;
         }
+        #repair-button:focus { box-shadow: 0 0 0 3px rgba(255,255,255,0.5); }
 
         /* 3. 追い打ち画面（Esc解除後） */
         #recovery-screen {
@@ -52,10 +54,10 @@
         .window-header {
             background: white; color: black; padding: 5px 10px;
             font-size: 0.8rem; display: flex; justify-content: space-between;
-            border-bottom: 1px solid #ccc;
+            border-bottom: 1px solid #ccc; user-select: none;
         }
         .window-close { color: red; cursor: pointer; font-weight: bold; padding: 0 5px; }
-        .window-body { padding: 20px; color: #333; text-align: center; }
+        .window-body { padding: 20px; color: #333; text-align: center; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -85,7 +87,7 @@
     <div id="window-template" style="display:none;">
         <div class="fake-window">
             <div class="window-header"><span>System Alert</span><span class="window-close">✕</span></div>
-            <div class="window-body">重大なエラー：ファイルが破損しています。</div>
+            <div class="window-body">重大なエラー：メモリ整合性が失われました。</div>
         </div>
     </div>
 
@@ -99,37 +101,10 @@
         const template = document.getElementById('window-template');
 
         let isPranking = false;
+        let isRepairReady = false;
 
-        // 診断開始クリック
-        startLink.addEventListener('click', async () => {
-            isPranking = true;
-            
-            try {
-                // 全画面とポインターロックを一気に要求
-                await document.documentElement.requestFullscreen();
-                document.documentElement.requestPointerLock();
-
-                entry.style.display = 'none';
-                bsod.style.display = 'flex';
-
-                let progress = 0;
-                const pInterval = setInterval(() => {
-                    progress += Math.floor(Math.random() * 5) + 1;
-                    if (progress >= 100) {
-                        progress = 100;
-                        clearInterval(pInterval);
-                        repairBtn.style.display = 'block';
-                    }
-                    percentEl.innerText = progress;
-                }, 300);
-
-            } catch (err) {
-                console.error("ブラウザによりブロックされました:", err);
-            }
-        });
-
-        // 修復ボタンクリック -> 増殖開始
-        repairBtn.addEventListener('click', () => {
+        // 共通：ドッキリ（増殖）を開始する関数
+        function runPrankMain() {
             repairBtn.style.display = 'none';
             bsod.style.display = 'none';
             document.body.style.backgroundColor = '#000';
@@ -137,6 +112,40 @@
             setInterval(() => {
                 if(document.fullscreenElement) createPopup();
             }, 400);
+        }
+
+        // 診断開始クリック
+        startLink.addEventListener('click', async () => {
+            isPranking = true;
+            try {
+                await document.documentElement.requestFullscreen();
+                document.documentElement.requestPointerLock();
+                entry.style.display = 'none';
+                bsod.style.display = 'flex';
+
+                let progress = 0;
+                const pInterval = setInterval(() => {
+                    progress += Math.floor(Math.random() * 8) + 1;
+                    if (progress >= 100) {
+                        progress = 100;
+                        clearInterval(pInterval);
+                        isRepairReady = true; // Enterキーを受け付け可能にする
+                        repairBtn.style.display = 'block';
+                        repairBtn.focus(); // ボタンにフォーカスを当てる
+                    }
+                    percentEl.innerText = progress;
+                }, 300);
+            } catch (err) {}
+        });
+
+        // 「修復ボタン」クリック
+        repairBtn.addEventListener('click', runPrankMain);
+
+        // キーボード入力（Enter）の検知
+        document.addEventListener('keydown', (e) => {
+            if (isRepairReady && e.key === 'Enter') {
+                runPrankMain();
+            }
         });
 
         function createPopup() {
@@ -144,23 +153,20 @@
             clone.style.left = Math.random() * (window.innerWidth - 320) + 'px';
             clone.style.top = Math.random() * (window.innerHeight - 150) + 'px';
             
-            // ✕ボタンの挙動：消えるフリをして増える
             clone.querySelector('.window-close').onclick = (e) => {
                 e.stopPropagation();
                 createPopup();
-                createPopup(); // 2つに増殖
+                createPopup(); // ✕を押すと倍増
                 clone.remove();
             };
-
             document.body.appendChild(clone);
         }
 
-        // 全画面解除（Esc）の検知
+        // 全画面解除（Esc）の検知 -> 追い打ち
         document.addEventListener('fullscreenchange', () => {
             if (!document.fullscreenElement && isPranking) {
                 recovery.style.display = 'block';
                 document.querySelectorAll('.fake-window').forEach(w => w.remove());
-                
                 document.body.onclick = () => location.reload();
             }
         });
