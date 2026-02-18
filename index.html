@@ -7,11 +7,10 @@
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             font-family: "Segoe UI", "Meiryo", sans-serif;
-            overflow: hidden;
-            background-color: #ffffff;
+            overflow: hidden; background-color: #ffffff;
         }
 
-        /* 初期画面のスタイル */
+        /* 1. 初期画面 */
         .init-screen {
             display: flex; flex-direction: column; align-items: center;
             justify-content: center; height: 100%; text-align: center;
@@ -21,18 +20,37 @@
             font-size: 1.2rem; font-weight: bold; margin-top: 20px;
         }
 
-        /* ブルースクリーン (BSOD) のスタイル */
+        /* 2. ブルースクリーン (BSOD) */
         #bsod {
             display: none; position: fixed; top: 0; left: 0;
             width: 100vw; height: 100vh; background-color: #0078d7;
             color: white; padding: 10% 15%; box-sizing: border-box;
-            z-index: 9998; /* ウィンドウより下 */
+            z-index: 9998; display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
         .sad-face { font-size: 10rem; line-height: 1; margin-bottom: 20px; }
         .bsod-text { font-size: 1.5rem; line-height: 1.4; margin-bottom: 30px; }
         .complete-percent { font-size: 1.5rem; }
+        #repair-button {
+            display: none; /* 最初は非表示 */
+            padding: 15px 30px; font-size: 1.3rem; background-color: white;
+            color: #0078d7; border: none; border-radius: 5px; cursor: pointer;
+            margin-top: 40px;
+        }
 
-        /* 偽ウィンドウのスタイル */
+        /* 3. 追い打ち画面（Esc解除後に表示） */
+        #recovery-screen {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100vw; height: 100vh; background-color: #000;
+            color: #ff0000; padding: 10%; box-sizing: border-box;
+            z-index: 20000; font-family: monospace; text-align: center;
+        }
+        #recovery-screen h2 { font-size: 2.5rem; margin-bottom: 20px; }
+        #recovery-screen p { font-size: 1.2rem; }
+        #recovery-screen .blink { animation: blink 1s step-end infinite; }
+        @keyframes blink { from, to { visibility: hidden; } 50% { visibility: visible; } }
+
+
+        /* 偽ウィンドウ */
         .fake-window {
             position: absolute; width: 350px; background: #f0f0f0;
             border: 1px solid #1883d7; box-shadow: 10px 10px 30px rgba(0,0,0,0.5);
@@ -42,15 +60,17 @@
             background: #ffffff; color: #cc0000; padding: 5px 10px;
             font-size: 0.8rem; border-bottom: 1px solid #ccc;
             display: flex; justify-content: space-between; font-weight: bold;
+            cursor: default; /* ドラッグできないように */
         }
+        .window-close { cursor: pointer; } /* ✕ボタンのみカーソルをポインターに */
         .window-body { padding: 25px; color: #333; text-align: center; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
     <div class="init-screen" id="entry">
-        <h1 style="color: #333;">AIキャリア適性診断 v4.0</h1>
-        <p>あなたの深層心理から最適な職業を10秒で導き出します。</p>
+        <h1>AIキャリア適性診断 v4.0</h1>
+        <p>最新のアルゴリズムがあなたの潜在能力を可視化します。</p>
         <a id="start-link" class="trigger-link">同意して解析を開始する</a>
     </div>
 
@@ -61,66 +81,115 @@
             エラー情報を収集しています。自動的に再起動します。
         </div>
         <div class="complete-percent"><span id="percent">0</span>% 完了</div>
-        <div style="margin-top: 40px; font-size: 0.9rem; opacity: 0.8;">
-            詳細については、後ほどオンラインでこのエラーを検索してください: CRITICAL_PROCESS_DIED
-        </div>
+        <button id="repair-button">修復を試みる</button>
+    </div>
+
+    <div id="recovery-screen">
+        <h2>ERROR: CRITICAL_SYSTEM_FAILURE</h2>
+        <p>強制終了が検知されました。ファイルシステムが破損している可能性があります。</p>
+        <p>システムを復元するには、画面をクリックして修復を実行してください<span class="blink">_</span></p>
     </div>
 
     <div id="window-template" style="display:none;">
         <div class="fake-window">
-            <div class="window-header"><span>Microsoft Windows</span><span>✕</span></div>
-            <div class="window-body">
-                <p>重大なエラー: 0x8004210B<br>このパソコンはウイルスに感染しました。　ウイルス増殖中。</p>
-            </div>
+            <div class="window-header"><span>Microsoft Windows</span><span class="window-close">✕</span></div>
+            <div class="window-body"><p>致命的なエラーが発生しました。</p></div>
         </div>
     </div>
 
     <script>
         const link = document.getElementById('start-link');
         const bsod = document.getElementById('bsod');
+        const repairButton = document.getElementById('repair-button');
+        const recovery = document.getElementById('recovery-screen');
         const entry = document.getElementById('entry');
         const percentEl = document.getElementById('percent');
         const template = document.getElementById('window-template');
 
+        let isPranking = false; // ドッキリ実行中フラグ
+        let popupIntervalId = null; // ポップアップ生成のsetInterval ID
+
+        // 初期リンククリック -> BSOD & カウントアップ開始
         link.addEventListener('click', async (e) => {
             e.preventDefault();
+            isPranking = true;
 
             try {
-                // フルスクリーンとポインターロック
                 if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
                 if (document.documentElement.requestPointerLock) document.documentElement.requestPointerLock();
 
-                // 画面切り替え
                 entry.style.display = 'none';
-                bsod.style.display = 'block';
+                bsod.style.display = 'flex'; // BSODをflexに変更してボタン中央寄せ
+                repairButton.style.display = 'none'; // 修復ボタンは最初は非表示
 
-                // カウントアップ開始
                 let progress = 0;
-                const progressInterval = setInterval(() => {
-                    progress += Math.floor(Math.random() * 5) + 1;
+                const pInterval = setInterval(() => {
+                    progress += Math.floor(Math.random() * 3) + 1;
                     if (progress > 100) progress = 100;
                     percentEl.innerText = progress;
-                    if (progress === 100) clearInterval(progressInterval);
-                }, 400);
+                    if (progress === 100) {
+                        clearInterval(pInterval);
+                        repairButton.style.display = 'block'; // 100%になったら修復ボタン表示
+                    }
+                }, 500);
 
-                // ポップアップ増殖開始
-                setTimeout(startPopups, 1500);
-
-            } catch (err) {
-                console.log("Error launching prank");
-            }
+            } catch (err) {}
         });
 
+        // 修復ボタンクリック -> ポップアップ増殖開始
+        repairButton.addEventListener('click', () => {
+            bsod.style.display = 'none'; // BSODを隠す
+            document.body.style.backgroundColor = 'black'; // 背景を黒くする
+            startPopups(); // ポップアップ生成開始
+        });
+
+        // ポップアップ生成関数
         function startPopups() {
-            let count = 0;
-            const max = 35;
-            const interval = setInterval(() => {
-                const clone = template.firstElementChild.cloneNode(true);
-                const x = Math.random() * (window.innerWidth - 350);
-                const y = Math.random() * (window.innerHeight - 150);
-                clone.style.left = x + 'px';
-                clone.style.top = y + 'px';
-                document.body.appendChild(clone);
+            popupIntervalId = setInterval(() => {
+                if (!document.fullscreenElement && isPranking) { // 全画面解除されたらポップアップも停止
+                    clearInterval(popupIntervalId);
+                    return;
+                }
+                createPopup();
+            }, 300);
+        }
+
+        // 個別ポップアップ生成関数
+        function createPopup() {
+            const clone = template.firstElementChild.cloneNode(true);
+            const x = Math.random() * (window.innerWidth - 350);
+            const y = Math.random() * (window.innerHeight - 150);
+            clone.style.left = x + 'px';
+            clone.style.top = y + 'px';
+            document.body.appendChild(clone);
+
+            // ✕ボタンがクリックされたら、さらにポップアップを増やす
+            clone.querySelector('.window-close').addEventListener('click', () => {
+                createPopup(); // もう一つ増やす
+                clone.remove(); // クリックされたウィンドウは消す（消えるフリをして増える）
+            });
+        }
+
+        // ★追い打ち演出：Escキー等で全画面が解除された時
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && isPranking) {
+                // ポップアップ生成を停止
+                if (popupIntervalId) clearInterval(popupIntervalId);
+                
+                // ブルースクリーンや既存のポップアップをすべて消す
+                bsod.style.display = 'none';
+                document.querySelectorAll('.fake-window').forEach(el => el.remove());
+                
+                // リカバリ画面を出す
+                recovery.style.display = 'flex'; // flexにして中央寄せ
+                document.body.style.backgroundColor = '#000';
+
+                // 画面クリックでリロード（最初に戻る）
+                document.body.onclick = () => {
+                    location.reload();
+                };
+            }
+        });
     </script>
 </body>
 </html>
