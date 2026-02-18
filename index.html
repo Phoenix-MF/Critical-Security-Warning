@@ -67,7 +67,7 @@
     <div id="window-template" style="display:none;">
         <div class="fake-window">
             <div class="window-header"><span>System Alert</span><span class="window-close">✕</span></div>
-            <div class="window-body">重大なエラー：データの整合性が失われました。</div>
+            <div class="window-body">重大なエラー：データの整合性が完全に失われました。</div>
         </div>
     </div>
 
@@ -82,16 +82,20 @@
         let isPranking = false;
         let isRepairReady = false;
         let isPopupMode = false;
+        let sirenInterval = null;
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        // 汎用ビープ音生成
+        // 汎用ビープ音生成 (音量1.0 = 100%設定)
         function playSound(freq, duration, type = 'sine') {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = type;
             osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(1, audioCtx.currentTime);
+            
+            // 音量を100%(1.0)に設定
+            gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start();
@@ -99,15 +103,24 @@
         }
 
         // シーン別サウンド
-        const soundStart = () => playSound(200, 0.5, 'square'); // 低い音
-        const soundNotice = () => playSound(880, 0.3, 'sine');  // 高い音
-        const soundError = () => { // エラー音（和音風）
-            playSound(440, 0.2);
-            playSound(554, 0.2);
+        const soundStartSiren = () => {
+            sirenInterval = setInterval(() => {
+                if (!isPopupMode) {
+                    playSound(200, 0.7, 'square'); // あの「フォン」という低い音
+                } else {
+                    clearInterval(sirenInterval);
+                }
+            }, 900);
+        };
+        const soundNotice = () => playSound(880, 0.4, 'sine');
+        const soundError = () => {
+            playSound(440, 0.25);
+            playSound(554, 0.25);
         };
 
         function runPrankMain() {
             isPopupMode = true;
+            clearInterval(sirenInterval); // サイレンを止める
             repairBtn.style.display = 'none';
             bsod.style.display = 'none';
             document.body.style.backgroundColor = '#000';
@@ -120,7 +133,7 @@
         startLink.addEventListener('click', async () => {
             isPranking = true;
             audioCtx.resume();
-            soundStart(); // クリックした瞬間の音
+            soundStartSiren(); // クリックした瞬間からサイレン開始
 
             try {
                 await document.documentElement.requestFullscreen();
@@ -137,21 +150,19 @@
                         isRepairReady = true; 
                         repairBtn.style.display = 'block';
                         repairBtn.focus();
-                        soundNotice(); // 完了時の音
+                        soundNotice(); 
                     }
                     percentEl.innerText = progress;
-                }, 300);
+                }, 350);
             } catch (err) {}
         });
 
         repairBtn.addEventListener('click', runPrankMain);
 
         document.addEventListener('keydown', (e) => {
-            // Enterで修復開始
             if (isRepairReady && e.key === 'Enter' && !isPopupMode) {
                 runPrankMain();
             }
-            // Backspaceで増殖（増殖モード中のみ）
             if (isPopupMode && e.key === 'Backspace') {
                 e.preventDefault();
                 createPopup();
@@ -163,7 +174,7 @@
             clone.style.left = Math.random() * (window.innerWidth - 320) + 'px';
             clone.style.top = Math.random() * (window.innerHeight - 150) + 'px';
             
-            soundError(); // 増殖時のエラー音
+            soundError(); // ウィンドウ出現時のエラー音
 
             clone.querySelector('.window-close').onclick = (e) => {
                 e.stopPropagation();
